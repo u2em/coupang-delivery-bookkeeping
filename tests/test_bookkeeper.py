@@ -438,7 +438,25 @@ class TestYearlySummary:
         assert out["year"] == "2026"
         assert out["delivery_count"] == 30
         assert out["revenue_total"] == 30 * bookkeeper.DEFAULT_UNIT_PRICE
+        assert out["deduction_total"] == 0
+        assert out["net_revenue"] == out["revenue_total"]
         assert len(out["monthly_breakdown"]) == 2
+
+    def test_with_deductions(self, capsys):
+        bookkeeper.cmd_add_revenue(make_args(count=50, zone=None, unit_price=None, date="2026-03-01"))
+        bookkeeper.cmd_add_deduction(make_args(reason="lost", description="분실", amount=5000, date="2026-03-01"))
+        bookkeeper.cmd_add_deduction(make_args(reason="damage", description="파손", amount=3000, date="2026-03-15"))
+        capsys.readouterr()
+
+        args = make_args(year=2026)
+        bookkeeper.cmd_yearly_summary(args)
+        out = parse_json(capsys.readouterr().out)
+
+        expected_rev = 50 * bookkeeper.DEFAULT_UNIT_PRICE
+        assert out["revenue_total"] == expected_rev
+        assert out["deduction_total"] == 8000
+        assert out["net_revenue"] == expected_rev - 8000
+        assert out["net_income_estimate"] == out["net_revenue"] - out["total_expense"]
 
     def test_empty_year(self, capsys):
         args = make_args(year=2099)
@@ -463,6 +481,7 @@ class TestExport:
         bookkeeper.cmd_add_revenue(make_args(count=5, zone=None, unit_price=None, date="2026-05-01"))
         bookkeeper.cmd_add_fuel(make_args(price_per_liter=1000.0, liters=10.0, date="2026-05-01"))
         bookkeeper.cmd_add_expense(make_args(category="meal", description="점심", amount=8000, date="2026-05-01"))
+        bookkeeper.cmd_add_deduction(make_args(reason="damage", description="파손", amount=5000, date="2026-05-01"))
         capsys.readouterr()
 
         outfile = str(tmp_path / "export.csv")
@@ -471,13 +490,29 @@ class TestExport:
         out = parse_json(capsys.readouterr().out)
 
         assert out["action"] == "exported"
-        assert out["rows"] == 3
+        assert out["rows"] == 4
         assert Path(outfile).exists()
 
         with open(outfile, encoding="utf-8-sig") as f:
             reader = csv.DictReader(f)
             rows = list(reader)
-        assert len(rows) == 3
+        assert len(rows) == 4
+
+    def test_export_includes_deduction_rows(self, capsys, tmp_path):
+        bookkeeper.cmd_add_deduction(make_args(reason="lost", description="분실 건", amount=10000, date="2026-07-01"))
+        capsys.readouterr()
+
+        outfile = str(tmp_path / "ded_export.csv")
+        args = make_args(month="2026-07", output=outfile)
+        bookkeeper.cmd_export(args)
+        out = parse_json(capsys.readouterr().out)
+        assert out["rows"] == 1
+
+        with open(outfile, encoding="utf-8-sig") as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+        assert len(rows) == 1
+        assert rows[0]["구분"] == "차감"
 
     def test_export_empty_month(self, capsys, tmp_path):
         outfile = str(tmp_path / "empty.csv")
@@ -503,6 +538,7 @@ class TestList:
         bookkeeper.cmd_add_revenue(make_args(count=5, zone=None, unit_price=None, date="2026-04-10"))
         bookkeeper.cmd_add_fuel(make_args(price_per_liter=900.0, liters=20.0, date="2026-04-10"))
         bookkeeper.cmd_add_expense(make_args(category="supplies", description="테이프", amount=3000, date="2026-04-10"))
+        bookkeeper.cmd_add_deduction(make_args(reason="lost", description="분실", amount=2000, date="2026-04-10"))
         capsys.readouterr()
 
         args = make_args(date="2026-04-10")
@@ -513,6 +549,7 @@ class TestList:
         assert len(out["revenue"]) == 1
         assert len(out["fuel"]) == 1
         assert len(out["expenses"]) == 1
+        assert len(out["deductions"]) == 1
 
     def test_list_empty(self, capsys):
         args = make_args(date="2099-01-01")
@@ -521,6 +558,7 @@ class TestList:
         assert out["revenue"] == []
         assert out["fuel"] == []
         assert out["expenses"] == []
+        assert out["deductions"] == []
 
     def test_output_is_valid_json(self, capsys):
         args = make_args(date="2026-01-01")
@@ -569,12 +607,22 @@ class TestDelete:
         assert out["rows_affected"] == 0
 
     def test_delete_invalid_table(self, capsys):
-        args = make_args(table="deduction", id=1)
+        args = make_args(table="unknown_table", id=1)
         with pytest.raises(SystemExit) as exc_info:
             bookkeeper.cmd_delete(args)
         assert exc_info.value.code == 1
         out = parse_json(capsys.readouterr().out)
         assert "error" in out
+
+    def test_delete_deduction(self, capsys):
+        bookkeeper.cmd_add_deduction(make_args(reason="lost", description="분실", amount=5000, date="2026-04-01"))
+        capsys.readouterr()
+
+        args = make_args(table="deduction", id=1)
+        bookkeeper.cmd_delete(args)
+        out = parse_json(capsys.readouterr().out)
+        assert out["action"] == "deleted"
+        assert out["rows_affected"] == 1
 
     def test_delete_whitelist_zone(self, capsys):
         args = make_args(table="zone", id=1)
@@ -602,6 +650,76 @@ class TestDelete:
 # ---------------------------------------------------------------------------
 
 class TestEdgeCases:
+    pass
+
+
+# ---------------------------------------------------------------------------
+# Input validation (negative / zero values)
+# ---------------------------------------------------------------------------
+
+class TestInputValidation:
+    def test_revenue_zero_count(self, capsys):
+        args = make_args(count=0, zone=None, unit_price=None)
+        with pytest.raises(SystemExit):
+            bookkeeper.cmd_add_revenue(args)
+        out = parse_json(capsys.readouterr().out)
+        assert "error" in out
+
+    def test_revenue_negative_count(self, capsys):
+        args = make_args(count=-5, zone=None, unit_price=None)
+        with pytest.raises(SystemExit):
+            bookkeeper.cmd_add_revenue(args)
+        out = parse_json(capsys.readouterr().out)
+        assert "error" in out
+
+    def test_fuel_zero_price(self, capsys):
+        args = make_args(price_per_liter=0, liters=10.0)
+        with pytest.raises(SystemExit):
+            bookkeeper.cmd_add_fuel(args)
+        out = parse_json(capsys.readouterr().out)
+        assert "error" in out
+
+    def test_fuel_negative_liters(self, capsys):
+        args = make_args(price_per_liter=1000.0, liters=-5.0)
+        with pytest.raises(SystemExit):
+            bookkeeper.cmd_add_fuel(args)
+        out = parse_json(capsys.readouterr().out)
+        assert "error" in out
+
+    def test_expense_zero_amount(self, capsys):
+        args = make_args(category="toll", description="test", amount=0)
+        with pytest.raises(SystemExit):
+            bookkeeper.cmd_add_expense(args)
+        out = parse_json(capsys.readouterr().out)
+        assert "error" in out
+
+    def test_expense_negative_amount(self, capsys):
+        args = make_args(category="toll", description="test", amount=-100)
+        with pytest.raises(SystemExit):
+            bookkeeper.cmd_add_expense(args)
+        out = parse_json(capsys.readouterr().out)
+        assert "error" in out
+
+    def test_deduction_zero_amount(self, capsys):
+        args = make_args(reason="lost", description="test", amount=0)
+        with pytest.raises(SystemExit):
+            bookkeeper.cmd_add_deduction(args)
+        out = parse_json(capsys.readouterr().out)
+        assert "error" in out
+
+    def test_deduction_negative_amount(self, capsys):
+        args = make_args(reason="lost", description="test", amount=-500)
+        with pytest.raises(SystemExit):
+            bookkeeper.cmd_add_deduction(args)
+        out = parse_json(capsys.readouterr().out)
+        assert "error" in out
+
+
+# ---------------------------------------------------------------------------
+# Edge cases (original)
+# ---------------------------------------------------------------------------
+
+class TestEdgeCasesOriginal:
     def test_all_expense_categories_accepted(self, capsys):
         for cat in bookkeeper.EXPENSE_CATEGORIES:
             bookkeeper.cmd_add_expense(make_args(

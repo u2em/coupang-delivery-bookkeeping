@@ -145,6 +145,10 @@ def cmd_add_revenue(args):
     count = args.count
     zone = args.zone.upper() if args.zone else None
 
+    if count <= 0:
+        print(json.dumps({"error": "count must be greater than 0"}, ensure_ascii=False))
+        sys.exit(1)
+
     unit_price_source = "default"
     if zone:
         conn = get_db()
@@ -270,6 +274,14 @@ def cmd_add_fuel(args):
     d = args.date or today_str()
     price = args.price_per_liter
     liters = args.liters
+
+    if price <= 0:
+        print(json.dumps({"error": "price_per_liter must be greater than 0"}, ensure_ascii=False))
+        sys.exit(1)
+    if liters <= 0:
+        print(json.dumps({"error": "liters must be greater than 0"}, ensure_ascii=False))
+        sys.exit(1)
+
     total_cost = round(price * liters, 0)
     subsidy = LPG_SUBSIDY_PER_LITER
     subsidy_amount = round(subsidy * liters, 0)
@@ -307,6 +319,10 @@ def cmd_add_expense(args):
         print(json.dumps({"error": f"Unknown category: {cat}", "valid": list(EXPENSE_CATEGORIES.keys())}, ensure_ascii=False))
         sys.exit(1)
 
+    if args.amount <= 0:
+        print(json.dumps({"error": "amount must be greater than 0"}, ensure_ascii=False))
+        sys.exit(1)
+
     conn = get_db()
     conn.execute(
         "INSERT INTO expense (date, category, description, amount, note) VALUES (?, ?, ?, ?, ?)",
@@ -332,6 +348,10 @@ def cmd_add_deduction(args):
     reason = args.reason
     if reason not in DEDUCTION_REASONS:
         print(json.dumps({"error": f"Unknown reason: {reason}", "valid": list(DEDUCTION_REASONS.keys())}, ensure_ascii=False))
+        sys.exit(1)
+
+    if args.amount <= 0:
+        print(json.dumps({"error": "amount must be greater than 0"}, ensure_ascii=False))
         sys.exit(1)
 
     conn = get_db()
@@ -516,6 +536,10 @@ def cmd_yearly_summary(args):
         (f"{year}%",)
     ).fetchall()
 
+    ded = conn.execute(
+        "SELECT SUM(amount) as total FROM deduction WHERE date LIKE ?", (f"{year}%",)
+    ).fetchone()
+
     # Monthly breakdown
     monthly = conn.execute(
         """SELECT substr(date,1,7) as month,
@@ -527,6 +551,8 @@ def cmd_yearly_summary(args):
     conn.close()
 
     revenue_total = rev["total"] or 0
+    deduction_total = ded["total"] or 0
+    net_revenue = revenue_total - deduction_total
     fuel_net = int(fuel["net"] or 0)
     fuel_subsidy = int(fuel["subsidy"] or 0)
     expenses_by_cat = [{"category": r["category"], "category_name": EXPENSE_CATEGORIES.get(r["category"], r["category"]),
@@ -539,12 +565,14 @@ def cmd_yearly_summary(args):
         "working_days": rev["days"] or 0,
         "revenue_total": revenue_total,
         "delivery_count": rev["cnt"] or 0,
+        "deduction_total": deduction_total,
+        "net_revenue": net_revenue,
         "fuel_net": fuel_net,
         "fuel_subsidy_received": fuel_subsidy,
         "expenses_by_category": expenses_by_cat,
         "expense_total": expense_total,
         "total_expense": total_expense,
-        "net_income_estimate": revenue_total - total_expense,
+        "net_income_estimate": net_revenue - total_expense,
         "monthly_breakdown": [{"month": r["month"], "deliveries": r["cnt"], "revenue": r["rev"]} for r in monthly],
     }
     print(json.dumps(result, ensure_ascii=False))
@@ -583,6 +611,15 @@ def cmd_export(args):
             "수입": "", "지출": r["amount"], "비고": r["note"] or ""
         })
 
+    # Deduction records
+    for r in conn.execute("SELECT * FROM deduction WHERE date LIKE ? ORDER BY date", (f"{month}%",)):
+        rows.append({
+            "날짜": r["date"], "구분": "차감",
+            "분류": DEDUCTION_REASONS.get(r["reason"], r["reason"]),
+            "내용": r["description"] or "",
+            "수입": "", "지출": r["amount"], "비고": r["note"] or ""
+        })
+
     conn.close()
 
     rows.sort(key=lambda x: x["날짜"])
@@ -598,7 +635,7 @@ def cmd_export(args):
 def cmd_delete(args):
     """Delete a record by table and ID."""
     table = args.table
-    if table not in ("revenue", "fuel", "expense"):
+    if table not in ("revenue", "fuel", "expense", "deduction"):
         print(json.dumps({"error": f"Invalid table: {table}"}))
         sys.exit(1)
     conn = get_db()
@@ -613,7 +650,7 @@ def cmd_list(args):
     d = args.date or today_str()
     conn = get_db()
 
-    result = {"date": d, "revenue": [], "fuel": [], "expenses": []}
+    result = {"date": d, "revenue": [], "fuel": [], "expenses": [], "deductions": []}
 
     for r in conn.execute("SELECT * FROM revenue WHERE date = ?", (d,)):
         result["revenue"].append(dict(r))
@@ -621,6 +658,8 @@ def cmd_list(args):
         result["fuel"].append(dict(r))
     for r in conn.execute("SELECT * FROM expense WHERE date = ?", (d,)):
         result["expenses"].append(dict(r))
+    for r in conn.execute("SELECT * FROM deduction WHERE date = ?", (d,)):
+        result["deductions"].append(dict(r))
 
     conn.close()
     print(json.dumps(result, ensure_ascii=False, default=str))
@@ -682,7 +721,7 @@ def main():
 
     # delete
     p = sub.add_parser("delete")
-    p.add_argument("--table", type=str, required=True, choices=["revenue", "fuel", "expense"])
+    p.add_argument("--table", type=str, required=True, choices=["revenue", "fuel", "expense", "deduction"])
     p.add_argument("--id", type=int, required=True)
 
     # list
