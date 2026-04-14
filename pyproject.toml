@@ -1,0 +1,27 @@
+[project]
+name = "coupang-delivery-bookkeeping"
+version = "0.1.0"
+description = "쿠팡 퀵플렉스 화물 개인사업자 일일 장부 관리 CLI"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.8"
+authors = [{ name = "u2em" }]
+keywords = ["coupang", "bookkeeping", "delivery", "korean-tax", "ai-agent"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: Korean",
+    "Programming Language :: Python :: 3",
+    "Topic :: Office/Business :: Financial :: Accounting",
+]
+
+[project.scripts]
+coupang-books = "bookkeeper:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,5 +1,9 @@
 # 쿠팡 퀵플렉스 배송 장부 (Coupang Delivery Bookkeeping)
 
+> **Built with Claude at Every Layer** — claude.ai로 설계, Hermes Agent(API)로 스캐폴딩, Claude Code(Max OAuth)로 코딩, Discord 봇으로 배포. Four Claudes, one codebase, zero manual coding.
+
+[English README](./README_EN.md)
+
 쿠팡 퀵플렉스 화물 개인사업자를 위한 일일 장부 관리 도구.
 AI 에이전트(Hermes Agent)와 연동하여 자연어로 매출/경비/유류비를 기록하고, 홈택스 셀프 신고용 데이터를 생성합니다.
 
@@ -161,17 +165,6 @@ export HERMES_HOME=/path/to/data
 - 일반과세자 기준
 - 유가보조금(173원/L)은 환급 수입 → 경비에서 차감
 - 이 도구는 장부 기록 보조 도구이며, 세무 조언을 제공하지 않습니다
-
-## Built with Claude at Every Layer
-
-This project was built using Claude at every layer of the stack:
-
-- **Ideation & domain modeling** — claude.ai (Max, conversational planning)
-- **Scaffolding & skill creation** — Hermes Agent (Claude API, orchestration)
-- **Code iteration & refactoring** — Claude Code (Max OAuth, delegated via Hermes)
-- **Daily usage interface** — Discord bot powered by Hermes gateway
-
-Four Claudes, one codebase, zero manual coding.
 
 ## License
 
