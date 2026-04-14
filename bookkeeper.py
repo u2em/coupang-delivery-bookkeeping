@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""쿠팡친구 화물 개인사업자 장부 관리 스크립트.
+"""쿠팡 퀵플렉스 화물 개인사업자 장부 관리 스크립트.
 
 SQLite DB에 매출/경비/유류비를 기록하고 집계한다.
 """
@@ -513,7 +513,7 @@ def cmd_list(args):
 # --- Main ---
 
 def main():
-    parser = argparse.ArgumentParser(description="쿠팡친구 장부 관리")
+    parser = argparse.ArgumentParser(description="쿠팡 퀵플렉스 장부 관리")
     sub = parser.add_subparsers(dest="command")
 
     # add-revenue
