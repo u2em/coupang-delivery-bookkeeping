@@ -162,6 +162,17 @@ export HERMES_HOME=/path/to/data
 - 유가보조금(173원/L)은 환급 수입 → 경비에서 차감
 - 이 도구는 장부 기록 보조 도구이며, 세무 조언을 제공하지 않습니다
 
+## Built with Claude at Every Layer
+
+This project was built using Claude at every layer of the stack:
+
+- **Ideation & domain modeling** — claude.ai (Max, conversational planning)
+- **Scaffolding & skill creation** — Hermes Agent (Claude API, orchestration)
+- **Code iteration & refactoring** — Claude Code (Max OAuth, delegated via Hermes)
+- **Daily usage interface** — Discord bot powered by Hermes gateway
+
+Four Claudes, one codebase, zero manual coding.
+
 ## License
 
 MIT
