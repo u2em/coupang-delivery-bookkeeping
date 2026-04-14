@@ -18,12 +18,7 @@ DEFAULT_UNIT_PRICE = 1000     # 기본 배송 건당 단가
 DB_DIR = Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes")) / "data"
 DB_PATH = DB_DIR / "coupang_books.db"
 
-# 구역별 배송 단가
-ZONE_PRICES = {
-    "804C": 1050,
-    "804D": 850,
-    "901CD": 1000,
-}
+
 
 DEDUCTION_REASONS = {
     "lost": "분실",
@@ -106,7 +101,37 @@ def _init_db(conn: sqlite3.Connection):
         CREATE INDEX IF NOT EXISTS idx_fuel_date ON fuel(date);
         CREATE INDEX IF NOT EXISTS idx_expense_date ON expense(date);
         CREATE INDEX IF NOT EXISTS idx_deduction_date ON deduction(date);
+
+        CREATE TABLE IF NOT EXISTS zone (
+            code TEXT PRIMARY KEY,
+            name TEXT,
+            unit_price INTEGER NOT NULL,
+            streets TEXT,
+            area_type TEXT,
+            approx_units INTEGER,
+            district TEXT,
+            note TEXT
+        );
     """)
+    _seed_zones(conn)
+
+
+def _seed_zones(conn: sqlite3.Connection):
+    """Insert default zones if the zone table is empty."""
+    count = conn.execute("SELECT COUNT(*) FROM zone").fetchone()[0]
+    if count > 0:
+        return
+    defaults = [
+        ("804C", "지봉로", 1050, "지봉로12길,지봉로14길,지봉로16길", "houses", None, "종로구", None),
+        ("804D", "낙산길", 850, "낙산길", "apartment", 900, "종로구", None),
+        ("901C", "창신5길", 1000, "창신5길", "houses", None, "종로구", None),
+        ("901D", "종로51길", 1000, "종로51길,종로53길,창신1길", "mixed", None, "종로구", None),
+    ]
+    conn.executemany(
+        "INSERT INTO zone (code, name, unit_price, streets, area_type, approx_units, district, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        defaults
+    )
+    conn.commit()
 
 
 def today_str():
@@ -120,10 +145,22 @@ def cmd_add_revenue(args):
     count = args.count
     zone = args.zone.upper() if args.zone else None
 
-    if zone and zone in ZONE_PRICES:
-        unit = ZONE_PRICES[zone]
+    unit_price_source = "default"
+    if zone:
+        conn = get_db()
+        row = conn.execute("SELECT unit_price FROM zone WHERE code = ?", (zone,)).fetchone()
+        conn.close()
+        if row:
+            unit = row["unit_price"]
+            unit_price_source = "zone"
+        elif args.unit_price:
+            unit = args.unit_price
+            unit_price_source = "manual"
+        else:
+            unit = DEFAULT_UNIT_PRICE
     elif args.unit_price:
         unit = args.unit_price
+        unit_price_source = "manual"
     else:
         unit = DEFAULT_UNIT_PRICE
 
@@ -145,9 +182,88 @@ def cmd_add_revenue(args):
         "unit_price": unit,
         "total": total,
         "note": args.note,
-        "unit_price_source": "zone" if (zone and zone in ZONE_PRICES) else ("manual" if args.unit_price else "default"),
+        "unit_price_source": unit_price_source,
     }
     print(json.dumps(result, ensure_ascii=False))
+
+
+def cmd_add_zone(args):
+    conn = get_db()
+    try:
+        conn.execute(
+            "INSERT INTO zone (code, name, unit_price, streets, area_type, approx_units, district, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (args.code.upper(), args.name, args.unit_price, args.streets, args.area_type, args.approx_units, args.district, args.note)
+        )
+        conn.commit()
+    except sqlite3.IntegrityError:
+        conn.close()
+        print(json.dumps({"error": f"Zone {args.code.upper()} already exists"}, ensure_ascii=False))
+        sys.exit(1)
+    conn.close()
+    result = {
+        "action": "zone_added",
+        "code": args.code.upper(),
+        "name": args.name,
+        "unit_price": args.unit_price,
+        "streets": args.streets,
+        "area_type": args.area_type,
+        "approx_units": args.approx_units,
+        "district": args.district,
+        "note": args.note,
+    }
+    print(json.dumps(result, ensure_ascii=False))
+
+
+def cmd_list_zones(args):
+    conn = get_db()
+    rows = conn.execute("SELECT code, name, unit_price, streets, area_type, approx_units, district, note FROM zone ORDER BY code").fetchall()
+    conn.close()
+    zones = [dict(r) for r in rows]
+    print(json.dumps(zones, ensure_ascii=False))
+
+
+def cmd_update_zone(args):
+    code = args.code.upper()
+    conn = get_db()
+    existing = conn.execute("SELECT * FROM zone WHERE code = ?", (code,)).fetchone()
+    if not existing:
+        conn.close()
+        print(json.dumps({"error": f"Zone {code} not found"}, ensure_ascii=False))
+        sys.exit(1)
+
+    updates = {}
+    for field in ["name", "unit_price", "streets", "area_type", "approx_units", "district", "note"]:
+        val = getattr(args, field, None)
+        if val is not None:
+            updates[field] = val
+
+    if not updates:
+        conn.close()
+        print(json.dumps({"error": "No fields to update"}, ensure_ascii=False))
+        sys.exit(1)
+
+    set_clause = ", ".join(f"{k} = ?" for k in updates)
+    values = list(updates.values()) + [code]
+    conn.execute(f"UPDATE zone SET {set_clause} WHERE code = ?", values)
+    conn.commit()
+
+    row = conn.execute("SELECT code, name, unit_price, streets, area_type, approx_units, district, note FROM zone WHERE code = ?", (code,)).fetchone()
+    conn.close()
+    result = {"action": "zone_updated"}
+    result.update(dict(row))
+    print(json.dumps(result, ensure_ascii=False))
+
+
+def cmd_remove_zone(args):
+    code = args.code.upper()
+    conn = get_db()
+    cursor = conn.execute("DELETE FROM zone WHERE code = ?", (code,))
+    conn.commit()
+    conn.close()
+    if cursor.rowcount == 0:
+        print(json.dumps({"error": f"Zone {code} not found"}, ensure_ascii=False))
+        sys.exit(1)
+    print(json.dumps({"action": "zone_removed", "code": code}, ensure_ascii=False))
 
 
 def cmd_add_fuel(args):
@@ -573,6 +689,35 @@ def main():
     p = sub.add_parser("list")
     p.add_argument("--date", type=str)
 
+    # add-zone
+    p = sub.add_parser("add-zone")
+    p.add_argument("--code", type=str, required=True)
+    p.add_argument("--name", type=str, required=True)
+    p.add_argument("--unit-price", type=int, required=True)
+    p.add_argument("--streets", type=str)
+    p.add_argument("--area-type", type=str)
+    p.add_argument("--approx-units", type=int)
+    p.add_argument("--district", type=str)
+    p.add_argument("--note", type=str)
+
+    # list-zones
+    sub.add_parser("list-zones")
+
+    # update-zone
+    p = sub.add_parser("update-zone")
+    p.add_argument("--code", type=str, required=True)
+    p.add_argument("--name", type=str)
+    p.add_argument("--unit-price", type=int)
+    p.add_argument("--streets", type=str)
+    p.add_argument("--area-type", type=str)
+    p.add_argument("--approx-units", type=int)
+    p.add_argument("--district", type=str)
+    p.add_argument("--note", type=str)
+
+    # remove-zone
+    p = sub.add_parser("remove-zone")
+    p.add_argument("--code", type=str, required=True)
+
     args = parser.parse_args()
 
     commands = {
@@ -586,6 +731,10 @@ def main():
         "export": cmd_export,
         "delete": cmd_delete,
         "list": cmd_list,
+        "add-zone": cmd_add_zone,
+        "list-zones": cmd_list_zones,
+        "update-zone": cmd_update_zone,
+        "remove-zone": cmd_remove_zone,
     }
 
     if args.command in commands:
