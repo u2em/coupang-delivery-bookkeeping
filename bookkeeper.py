@@ -102,6 +102,16 @@ def _init_db(conn: sqlite3.Connection):
         CREATE INDEX IF NOT EXISTS idx_expense_date ON expense(date);
         CREATE INDEX IF NOT EXISTS idx_deduction_date ON deduction(date);
 
+        CREATE TABLE IF NOT EXISTS odometer (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT NOT NULL,
+            reading INTEGER NOT NULL,
+            note TEXT,
+            created_at TEXT DEFAULT (datetime('now', 'localtime'))
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_odometer_date ON odometer(date);
+
         CREATE TABLE IF NOT EXISTS zone (
             code TEXT PRIMARY KEY,
             name TEXT,
@@ -372,6 +382,62 @@ def cmd_add_deduction(args):
         "note": args.note,
     }
     print(json.dumps(result, ensure_ascii=False))
+
+
+def cmd_add_odometer(args):
+    d = args.date or today_str()
+    reading = args.reading
+
+    if reading <= 0:
+        print(json.dumps({"error": "reading must be greater than 0"}, ensure_ascii=False))
+        sys.exit(1)
+
+    conn = get_db()
+    # Get previous reading for delta calculation
+    prev = conn.execute(
+        "SELECT reading, date FROM odometer WHERE date < ? OR (date = ? AND id < (SELECT MAX(id) FROM odometer WHERE date = ?)) ORDER BY date DESC, id DESC LIMIT 1",
+        (d, d, d)
+    ).fetchone()
+
+    conn.execute(
+        "INSERT INTO odometer (date, reading, note) VALUES (?, ?, ?)",
+        (d, reading, args.note)
+    )
+    conn.commit()
+    conn.close()
+
+    result = {
+        "action": "odometer_added",
+        "date": d,
+        "reading": reading,
+        "note": args.note,
+    }
+    if prev:
+        result["prev_reading"] = prev["reading"]
+        result["prev_date"] = prev["date"]
+        result["delta_km"] = reading - prev["reading"]
+
+    print(json.dumps(result, ensure_ascii=False))
+
+
+def cmd_list_odometer(args):
+    conn = get_db()
+    limit = args.limit or 20
+    rows = conn.execute(
+        "SELECT id, date, reading, note, created_at FROM odometer ORDER BY date DESC, id DESC LIMIT ?",
+        (limit,)
+    ).fetchall()
+    conn.close()
+
+    records = []
+    for i, r in enumerate(rows):
+        entry = dict(r)
+        # Next row (chronologically previous) for delta
+        if i + 1 < len(rows):
+            entry["delta_km"] = r["reading"] - rows[i + 1]["reading"]
+        records.append(entry)
+
+    print(json.dumps({"records": records, "count": len(records)}, ensure_ascii=False))
 
 
 def cmd_daily_summary(args):
@@ -757,6 +823,16 @@ def main():
     p = sub.add_parser("remove-zone")
     p.add_argument("--code", type=str, required=True)
 
+    # add-odometer
+    p = sub.add_parser("add-odometer")
+    p.add_argument("--date", type=str)
+    p.add_argument("--reading", type=int, required=True, help="주행거리 (km)")
+    p.add_argument("--note", type=str)
+
+    # list-odometer
+    p = sub.add_parser("list-odometer")
+    p.add_argument("--limit", type=int, default=20)
+
     args = parser.parse_args()
 
     commands = {
@@ -774,6 +850,8 @@ def main():
         "list-zones": cmd_list_zones,
         "update-zone": cmd_update_zone,
         "remove-zone": cmd_remove_zone,
+        "add-odometer": cmd_add_odometer,
+        "list-odometer": cmd_list_odometer,
     }
 
     if args.command in commands:
