@@ -132,15 +132,15 @@ class TestAddFuel:
         assert out["action"] == "fuel_added"
         assert out["total_cost"] == 50000
         assert out["subsidy_per_liter"] == bookkeeper.LPG_SUBSIDY_PER_LITER
-        assert out["subsidy_amount"] == 173 * 50
-        assert out["net_cost"] == 50000 - 173 * 50
+        assert out["subsidy_amount"] == round(179.47 * 50)
+        assert out["net_cost"] == 50000 - round(179.47 * 50)
 
     def test_subsidy_calculation(self, capsys):
         args = make_args(price_per_liter=1200.0, liters=40.0)
         bookkeeper.cmd_add_fuel(args)
         out = parse_json(capsys.readouterr().out)
         expected_total = round(1200 * 40)
-        expected_subsidy = round(173 * 40)
+        expected_subsidy = round(179.47 * 40)
         assert out["total_cost"] == expected_total
         assert out["subsidy_amount"] == expected_subsidy
         assert out["net_cost"] == expected_total - expected_subsidy
@@ -764,7 +764,7 @@ class TestEdgeCasesOriginal:
         assert out["fuel_type"] == "LPG"
 
     def test_constants_values(self):
-        assert bookkeeper.LPG_SUBSIDY_PER_LITER == 173
+        assert bookkeeper.LPG_SUBSIDY_PER_LITER == 179.47
         assert bookkeeper.DEFAULT_UNIT_PRICE == 1000
 
 
@@ -802,7 +802,7 @@ class TestIntegration:
         assert out["net_revenue"] == expected_rev - 5000
 
         fuel_total = round(1050 * 45)
-        fuel_subsidy = round(173 * 45)
+        fuel_subsidy = round(179.47 * 45)
         assert out["fuel"]["total_cost"] == fuel_total
         assert out["fuel"]["subsidy"] == fuel_subsidy
         assert out["fuel"]["net_cost"] == fuel_total - fuel_subsidy

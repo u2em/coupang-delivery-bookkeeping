@@ -13,7 +13,7 @@ from datetime import date, datetime
 from pathlib import Path
 
 # --- Constants ---
-LPG_SUBSIDY_PER_LITER = 173  # 화물차 LPG 유가보조금 (원/L)
+LPG_SUBSIDY_PER_LITER = 179.47  # 화물차 LPG 유가보조금 (원/L) — 분기별 변동, --subsidy-per-liter로 override 가능
 DEFAULT_UNIT_PRICE = 1000     # 기본 배송 건당 단가
 DB_DIR = Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes")) / "data"
 DB_PATH = DB_DIR / "coupang_books.db"
@@ -293,8 +293,15 @@ def cmd_add_fuel(args):
         sys.exit(1)
 
     total_cost = round(price * liters, 0)
-    subsidy = LPG_SUBSIDY_PER_LITER
-    subsidy_amount = round(subsidy * liters, 0)
+    subsidy_override = getattr(args, "subsidy_per_liter", None)
+    amount_override = getattr(args, "subsidy_amount", None)
+    subsidy = subsidy_override if subsidy_override is not None else LPG_SUBSIDY_PER_LITER
+    if amount_override is not None:
+        subsidy_amount = float(amount_override)
+        # back-calculate effective rate for storage
+        subsidy = round(subsidy_amount / liters, 2) if liters else subsidy
+    else:
+        subsidy_amount = round(subsidy * liters, 0)
     net = round(total_cost - subsidy_amount, 0)
 
     conn = get_db()
@@ -750,6 +757,8 @@ def main():
     p.add_argument("--date", type=str)
     p.add_argument("--price-per-liter", type=float, required=True)
     p.add_argument("--liters", type=float, required=True)
+    p.add_argument("--subsidy-per-liter", type=float, help="유가보조금 단가 (원/L). 분기별로 변동. 생략 시 기본값.")
+    p.add_argument("--subsidy-amount", type=float, help="유가보조금 총액(원) 직접 지정. 영수증에 표기된 값 쓸 때.")
     p.add_argument("--note", type=str)
 
     # add-expense
