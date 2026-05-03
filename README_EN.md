@@ -177,9 +177,9 @@ Agent:
     Maintenance   Vehicle inspection   ₩50,000
     Fuel          LPG 35L              ₩33,195
     ─────────────────────────────────
-    Total                              ₩83,197
+    Total                              ₩83,195
 
-  Estimated net profit: ₩144,303
+  Estimated net profit: ₩144,305
 ```
 
 ## Zone Pricing
