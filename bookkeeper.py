@@ -13,7 +13,7 @@ from datetime import date, datetime
 from pathlib import Path
 
 # --- Constants ---
-LPG_SUBSIDY_PER_LITER = 151.51  # 화물차 LPG 유가보조금 (원/L, 2026-05-01 기준) — 분기별 변동, --subsidy-per-liter로 override 가능
+LPG_SUBSIDY_PER_LITER = 151.57  # 화물차 LPG 유가보조금 (원/L, 2026-05-01 기준) — 분기별 변동, --subsidy-per-liter로 override 가능
 DEFAULT_UNIT_PRICE = 1000     # 기본 배송 건당 단가
 DB_DIR = Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes")) / "data"
 DB_PATH = DB_DIR / "coupang_books.db"

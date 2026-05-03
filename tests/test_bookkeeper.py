@@ -764,7 +764,7 @@ class TestEdgeCasesOriginal:
         assert out["fuel_type"] == "LPG"
 
     def test_constants_values(self):
-        assert bookkeeper.LPG_SUBSIDY_PER_LITER == 151.51
+        assert bookkeeper.LPG_SUBSIDY_PER_LITER == 151.57
         assert bookkeeper.DEFAULT_UNIT_PRICE == 1000
 
 
