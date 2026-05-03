@@ -41,7 +41,7 @@ Four Claudes, one codebase, zero manual coding.
 
 - **Natural language input** — "804C 150 packages, LPG 1100 won 35 liters" → auto-parsed and recorded
 - **Zone-based pricing** — 804C (₩1,050), 804D (₩850), 901CD (₩1,000) auto-applied
-- **LPG fuel subsidy auto-deduction** — ₩173/L (Korean freight truck subsidy program)
+- **LPG fuel subsidy auto-deduction** — ₩151.51/L as of 2026-05-01 (Korean freight truck subsidy program)
 - **Loss/misdelivery tracking** — settlement deduction history
 - **Daily/monthly/yearly summaries** — ready for income tax and VAT filing
 - **CSV export** — HomeTax/Excel compatible
@@ -80,9 +80,9 @@ python3 bookkeeper.py add-revenue --count 200 --unit-price 980
 ### Recording Fuel Costs
 
 ```bash
-# LPG refuel — fuel subsidy (₩173/L) auto-deducted
+# LPG refuel — fuel subsidy (₩151.51/L) auto-deducted
 python3 bookkeeper.py add-fuel --price-per-liter 1100 --liters 35
-# → Total ₩38,500 - subsidy ₩6,055 = actual expense ₩32,445
+# → Total ₩38,500 - subsidy ₩5,303 = actual expense ₩33,197
 ```
 
 ### Recording Expenses
@@ -175,11 +175,11 @@ Agent:
 
   Expenses:
     Maintenance   Vehicle inspection   ₩50,000
-    Fuel          LPG 35L              ₩32,445
+    Fuel          LPG 35L              ₩33,197
     ─────────────────────────────────
-    Total                              ₩82,445
+    Total                              ₩83,197
 
-  Estimated net profit: ₩145,055
+  Estimated net profit: ₩144,303
 ```
 
 ## Zone Pricing
@@ -195,7 +195,7 @@ To add new zones, update the `ZONE_PRICES` dictionary in `bookkeeper.py`.
 ## Tax Notes
 
 - Based on general taxpayer status (일반과세자)
-- Fuel subsidy (₩173/L) is a refund income → deducted from expenses
+- LPG fuel subsidy (₩151.51/L as of 2026-05-01) is a refund income → deducted from expenses
 - This tool assists with bookkeeping only and does not provide tax advice
 
 ## License
