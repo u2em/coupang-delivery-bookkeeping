@@ -132,7 +132,7 @@ def _seed_zones(conn: sqlite3.Connection):
     if count > 0:
         return
     defaults = [
-        ("804C", "지봉로", 1050, "지봉로12길,지봉로14길,지봉로16길", "houses", None, "종로구", None),
+        ("804C", "지봉로", 1100, "지봉로12길,지봉로14길,지봉로16길", "houses", None, "종로구", None),
         ("804D", "낙산길", 850, "낙산길", "apartment", 900, "종로구", None),
         ("901C", "창신5길", 1000, "창신5길", "houses", None, "종로구", None),
         ("901D", "종로51길", 1000, "종로51길,종로53길,창신1길", "mixed", None, "종로구", None),
