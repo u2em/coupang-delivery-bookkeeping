@@ -84,13 +84,13 @@ class TestAddRevenue:
         assert out["unit_price_source"] == "manual"
 
     def test_zone_lookup(self, capsys):
-        """Revenue with zone=804C should use the zone's unit_price (1050)."""
+        """Revenue with zone=804C should use the zone's unit_price (1100)."""
         args = make_args(count=20, zone="804c", unit_price=None)
         bookkeeper.cmd_add_revenue(args)
         out = parse_json(capsys.readouterr().out)
         assert out["zone"] == "804C"
-        assert out["unit_price"] == 1050
-        assert out["total"] == 20 * 1050
+        assert out["unit_price"] == 1100
+        assert out["total"] == 20 * 1100
         assert out["unit_price_source"] == "zone"
 
     def test_zone_not_found_uses_default(self, capsys):
@@ -309,16 +309,16 @@ class TestZoneRevenue:
         assert out["total"] == 8500
 
     def test_zone_901C_price(self, capsys):
-        """901C has unit_price 1000."""
+        """901C has unit_price 1100."""
         args = make_args(count=5, zone="901c", unit_price=None)
         bookkeeper.cmd_add_revenue(args)
         out = parse_json(capsys.readouterr().out)
-        assert out["unit_price"] == 1000
-        assert out["total"] == 5000
+        assert out["unit_price"] == 1100
+        assert out["total"] == 5500
 
     def test_updated_zone_price_used(self, capsys):
         """After updating a zone's price, revenue should use the new price."""
-        # Update 804C from 1050 to 1200
+        # Update 804C from 1100 to 1200
         upd = make_args(
             code="804C", name=None, unit_price=1200,
             streets=None, area_type=None,
@@ -368,9 +368,9 @@ class TestDailySummary:
         out = parse_json(capsys.readouterr().out)
 
         assert out["revenue"]["delivery_count"] == 20
-        assert out["revenue"]["gross_total"] == 20 * 1050
+        assert out["revenue"]["gross_total"] == 20 * 1100
         assert out["deduction_total"] == 3000
-        assert out["net_revenue"] == 20 * 1050 - 3000
+        assert out["net_revenue"] == 20 * 1100 - 3000
 
     def test_empty_day(self, capsys):
         args = make_args(date="2099-01-01")
@@ -795,7 +795,7 @@ class TestIntegration:
         bookkeeper.cmd_daily_summary(make_args(date=d))
         out = parse_json(capsys.readouterr().out)
 
-        expected_rev = 30 * 1050 + 20 * 850  # 804C=1050, 804D=850
+        expected_rev = 30 * 1100 + 20 * 850  # 804C=1100, 804D=850
         assert out["revenue"]["gross_total"] == expected_rev
         assert out["revenue"]["delivery_count"] == 50
         assert out["deduction_total"] == 5000
