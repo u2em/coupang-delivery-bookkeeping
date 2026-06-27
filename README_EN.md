@@ -93,7 +93,7 @@ python3 bookkeeper.py add-expense --category maintenance --description "Tire rep
 python3 bookkeeper.py add-expense --category toll --description "Highway toll" --amount 3200
 ```
 
-Expense categories: `fuel` (fuel costs), `maintenance` (vehicle maintenance), `insurance` (insurance), `depreciation` (depreciation), `telecom` (phone/data), `supplies` (consumables), `toll` (tolls), `meal` (meals), `other` (other)
+Expense categories: `fuel` (fuel costs), `maintenance` (vehicle maintenance), `insurance` (insurance), `depreciation` (depreciation), `telecom` (phone/data), `supplies` (consumables), `toll` (tolls), `other` (other)
 
 ### Recording Deductions (Loss/Misdelivery)
 

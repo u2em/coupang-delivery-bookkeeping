@@ -36,7 +36,6 @@ EXPENSE_CATEGORIES = {
     "telecom": "통신비",
     "supplies": "소모품",
     "toll": "통행료",
-    "meal": "식비",
     "other": "기타",
 }
 

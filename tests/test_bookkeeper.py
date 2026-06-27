@@ -175,7 +175,7 @@ class TestAddExpense:
         assert "valid" in out
 
     def test_output_is_valid_json(self, capsys):
-        args = make_args(category="meal", description="점심", amount=8000)
+        args = make_args(category="other", description="기타", amount=8000)
         bookkeeper.cmd_add_expense(args)
         raw = capsys.readouterr().out.strip()
         json.loads(raw)
@@ -480,7 +480,7 @@ class TestExport:
     def test_export_creates_csv(self, capsys, tmp_path):
         bookkeeper.cmd_add_revenue(make_args(count=5, zone=None, unit_price=None, date="2026-05-01"))
         bookkeeper.cmd_add_fuel(make_args(price_per_liter=1000.0, liters=10.0, date="2026-05-01"))
-        bookkeeper.cmd_add_expense(make_args(category="meal", description="점심", amount=8000, date="2026-05-01"))
+        bookkeeper.cmd_add_expense(make_args(category="supplies", description="박스테이프", amount=8000, date="2026-05-01"))
         bookkeeper.cmd_add_deduction(make_args(reason="damage", description="파손", amount=5000, date="2026-05-01"))
         capsys.readouterr()
 
@@ -592,7 +592,7 @@ class TestDelete:
         assert out["rows_affected"] == 1
 
     def test_delete_expense(self, capsys):
-        bookkeeper.cmd_add_expense(make_args(category="meal", description="x", amount=5000, date="2026-04-01"))
+        bookkeeper.cmd_add_expense(make_args(category="other", description="x", amount=5000, date="2026-04-01"))
         capsys.readouterr()
 
         args = make_args(table="expense", id=1)

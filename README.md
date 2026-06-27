@@ -63,7 +63,7 @@ python3 bookkeeper.py add-expense --category maintenance --description "타이�
 python3 bookkeeper.py add-expense --category toll --description "고속도로" --amount 3200
 ```
 
-경비 분류: `fuel`(유류비), `maintenance`(차량유지비), `insurance`(보험료), `depreciation`(감가상각), `telecom`(통신비), `supplies`(소모품), `toll`(통행료), `meal`(식비), `other`(기타)
+경비 분류: `fuel`(유류비), `maintenance`(차량유지비), `insurance`(보험료), `depreciation`(감가상각), `telecom`(통신비), `supplies`(소모품), `toll`(통행료), `other`(기타)
 
 ### 차감 기록 (분실/오배송)
 
