@@ -84,13 +84,13 @@ class TestAddRevenue:
         assert out["unit_price_source"] == "manual"
 
     def test_zone_lookup(self, capsys):
-        """Revenue with zone=804C should use the zone's unit_price (1050)."""
+        """Revenue with zone=804C should use the zone's unit_price (1100)."""
         args = make_args(count=20, zone="804c", unit_price=None)
         bookkeeper.cmd_add_revenue(args)
         out = parse_json(capsys.readouterr().out)
         assert out["zone"] == "804C"
-        assert out["unit_price"] == 1050
-        assert out["total"] == 20 * 1050
+        assert out["unit_price"] == 1100
+        assert out["total"] == 20 * 1100
         assert out["unit_price_source"] == "zone"
 
     def test_zone_not_found_uses_default(self, capsys):
@@ -175,7 +175,7 @@ class TestAddExpense:
         assert "valid" in out
 
     def test_output_is_valid_json(self, capsys):
-        args = make_args(category="meal", description="점심", amount=8000)
+        args = make_args(category="other", description="기타", amount=8000)
         bookkeeper.cmd_add_expense(args)
         raw = capsys.readouterr().out.strip()
         json.loads(raw)
@@ -309,16 +309,16 @@ class TestZoneRevenue:
         assert out["total"] == 8500
 
     def test_zone_901C_price(self, capsys):
-        """901C has unit_price 1000."""
+        """901C has unit_price 1100."""
         args = make_args(count=5, zone="901c", unit_price=None)
         bookkeeper.cmd_add_revenue(args)
         out = parse_json(capsys.readouterr().out)
-        assert out["unit_price"] == 1000
-        assert out["total"] == 5000
+        assert out["unit_price"] == 1100
+        assert out["total"] == 5500
 
     def test_updated_zone_price_used(self, capsys):
         """After updating a zone's price, revenue should use the new price."""
-        # Update 804C from 1050 to 1200
+        # Update 804C from 1100 to 1200
         upd = make_args(
             code="804C", name=None, unit_price=1200,
             streets=None, area_type=None,
@@ -368,9 +368,9 @@ class TestDailySummary:
         out = parse_json(capsys.readouterr().out)
 
         assert out["revenue"]["delivery_count"] == 20
-        assert out["revenue"]["gross_total"] == 20 * 1050
+        assert out["revenue"]["gross_total"] == 20 * 1100
         assert out["deduction_total"] == 3000
-        assert out["net_revenue"] == 20 * 1050 - 3000
+        assert out["net_revenue"] == 20 * 1100 - 3000
 
     def test_empty_day(self, capsys):
         args = make_args(date="2099-01-01")
@@ -480,7 +480,7 @@ class TestExport:
     def test_export_creates_csv(self, capsys, tmp_path):
         bookkeeper.cmd_add_revenue(make_args(count=5, zone=None, unit_price=None, date="2026-05-01"))
         bookkeeper.cmd_add_fuel(make_args(price_per_liter=1000.0, liters=10.0, date="2026-05-01"))
-        bookkeeper.cmd_add_expense(make_args(category="meal", description="점심", amount=8000, date="2026-05-01"))
+        bookkeeper.cmd_add_expense(make_args(category="supplies", description="박스테이프", amount=8000, date="2026-05-01"))
         bookkeeper.cmd_add_deduction(make_args(reason="damage", description="파손", amount=5000, date="2026-05-01"))
         capsys.readouterr()
 
@@ -592,7 +592,7 @@ class TestDelete:
         assert out["rows_affected"] == 1
 
     def test_delete_expense(self, capsys):
-        bookkeeper.cmd_add_expense(make_args(category="meal", description="x", amount=5000, date="2026-04-01"))
+        bookkeeper.cmd_add_expense(make_args(category="other", description="x", amount=5000, date="2026-04-01"))
         capsys.readouterr()
 
         args = make_args(table="expense", id=1)
@@ -795,7 +795,7 @@ class TestIntegration:
         bookkeeper.cmd_daily_summary(make_args(date=d))
         out = parse_json(capsys.readouterr().out)
 
-        expected_rev = 30 * 1050 + 20 * 850  # 804C=1050, 804D=850
+        expected_rev = 30 * 1100 + 20 * 850  # 804C=1100, 804D=850
         assert out["revenue"]["gross_total"] == expected_rev
         assert out["revenue"]["delivery_count"] == 50
         assert out["deduction_total"] == 5000
