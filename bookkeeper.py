@@ -13,7 +13,7 @@ from datetime import date, datetime
 from pathlib import Path
 
 # --- Constants ---
-LPG_SUBSIDY_PER_LITER = 151.57  # 화물차 LPG 유가보조금 (원/L, 2026-05-01 기준) — 분기별 변동, --subsidy-per-liter로 override 가능
+LPG_SUBSIDY_PER_LITER = 115.14  # 화물차 LPG 유가보조금 (원/L, 2026-08-03 충전분 및 유가보조금 앱/사이트 확인) — 변동 가능, override 지원
 DEFAULT_UNIT_PRICE = 1000     # 기본 배송 건당 단가
 DB_DIR = Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes")) / "data"
 DB_PATH = DB_DIR / "coupang_books.db"
@@ -126,18 +126,19 @@ def _init_db(conn: sqlite3.Connection):
 
 
 def _seed_zones(conn: sqlite3.Connection):
-    """Insert default zones if the zone table is empty."""
-    count = conn.execute("SELECT COUNT(*) FROM zone").fetchone()[0]
-    if count > 0:
-        return
+    """Add current and legacy zones without overwriting user-edited rows."""
     defaults = [
-        ("804C", "지봉로", 1100, "지봉로12길,지봉로14길,지봉로16길", "houses", None, "종로구", None),
-        ("804D", "낙산길", 850, "낙산길", "apartment", 900, "종로구", None),
-        ("901C", "창신5길", 1100, "창신5길", "houses", None, "종로구", None),
-        ("901D", "종로51길", 1100, "종로51길,종로53길,창신1길", "mixed", None, "종로구", None),
+        ("151C", "지봉로", 1100, "지봉로12길,지봉로14길,지봉로16길", "houses", None, "종로구", "F_삼선1; 2026-07-29부터; 이전 중구1/804C"),
+        ("151D", "낙산길", 850, "낙산길", "apartment", 900, "종로구", "F_삼선1; 2026-07-29부터; 이전 중구1/804D"),
+        ("152C", "창신5길", 1100, "창신5길", "houses", None, "종로구", "F_삼선1; 2026-07-29부터; 이전 중구1/901C"),
+        ("152D", "종로51길", 1100, "종로51길,종로53길,창신1길", "mixed", None, "종로구", "F_삼선1; 2026-07-29부터; 이전 중구1/901D"),
+        ("804C", "지봉로", 1100, "지봉로12길,지봉로14길,지봉로16길", "houses", None, "종로구", "중구1; 2026-07-28까지; 이후 F_삼선1/151C"),
+        ("804D", "낙산길", 850, "낙산길", "apartment", 900, "종로구", "중구1; 2026-07-28까지; 이후 F_삼선1/151D"),
+        ("901C", "창신5길", 1100, "창신5길", "houses", None, "종로구", "중구1; 2026-07-28까지; 이후 F_삼선1/152C"),
+        ("901D", "종로51길", 1100, "종로51길,종로53길,창신1길", "mixed", None, "종로구", "중구1; 2026-07-28까지; 이후 F_삼선1/152D"),
     ]
     conn.executemany(
-        "INSERT INTO zone (code, name, unit_price, streets, area_type, approx_units, district, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT OR IGNORE INTO zone (code, name, unit_price, streets, area_type, approx_units, district, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         defaults
     )
     conn.commit()
@@ -746,7 +747,7 @@ def main():
     # add-revenue
     p = sub.add_parser("add-revenue")
     p.add_argument("--date", type=str)
-    p.add_argument("--zone", type=str, help="구역코드 (804C, 804D, 901CD)")
+    p.add_argument("--zone", type=str, help="구역코드 (151C, 151D, 152C, 152D; 이전 804C/804D/901C/901D)")
     p.add_argument("--count", type=int, required=True)
     p.add_argument("--unit-price", type=int, help="구역코드 없을 때 수동 단가")
     p.add_argument("--note", type=str)

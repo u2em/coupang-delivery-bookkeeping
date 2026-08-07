@@ -43,13 +43,16 @@ class TestDBInit:
         conn = bookkeeper.get_db()
         count = conn.execute("SELECT COUNT(*) FROM zone").fetchone()[0]
         conn.close()
-        assert count == 4  # 4 default zones
+        assert count == 8  # 4 current + 4 legacy zones
 
     def test_seed_zone_codes(self):
         conn = bookkeeper.get_db()
         codes = [r[0] for r in conn.execute("SELECT code FROM zone ORDER BY code").fetchall()]
         conn.close()
-        assert codes == ["804C", "804D", "901C", "901D"]
+        assert codes == [
+            "151C", "151D", "152C", "152D",
+            "804C", "804D", "901C", "901D",
+        ]
 
     def test_seed_zones_not_duplicated_on_second_call(self):
         conn = bookkeeper.get_db()
@@ -58,7 +61,7 @@ class TestDBInit:
         conn2 = bookkeeper.get_db()
         count = conn2.execute("SELECT COUNT(*) FROM zone").fetchone()[0]
         conn2.close()
-        assert count == 4
+        assert count == 8
 
 
 # ---------------------------------------------------------------------------
@@ -84,11 +87,11 @@ class TestAddRevenue:
         assert out["unit_price_source"] == "manual"
 
     def test_zone_lookup(self, capsys):
-        """Revenue with zone=804C should use the zone's unit_price (1100)."""
-        args = make_args(count=20, zone="804c", unit_price=None)
+        """Revenue with current zone=151C should use its unit price."""
+        args = make_args(count=20, zone="151c", unit_price=None)
         bookkeeper.cmd_add_revenue(args)
         out = parse_json(capsys.readouterr().out)
-        assert out["zone"] == "804C"
+        assert out["zone"] == "151C"
         assert out["unit_price"] == 1100
         assert out["total"] == 20 * 1100
         assert out["unit_price_source"] == "zone"
@@ -144,6 +147,43 @@ class TestAddFuel:
         assert out["total_cost"] == expected_total
         assert out["subsidy_amount"] == expected_subsidy
         assert out["net_cost"] == expected_total - expected_subsidy
+
+    def test_subsidy_rate_override(self, capsys):
+        args = make_args(
+            price_per_liter=1200.0,
+            liters=40.0,
+            subsidy_per_liter=151.57,
+            subsidy_amount=None,
+        )
+        bookkeeper.cmd_add_fuel(args)
+        out = parse_json(capsys.readouterr().out)
+        assert out["subsidy_per_liter"] == 151.57
+        assert out["subsidy_amount"] == round(151.57 * 40)
+
+    def test_exact_subsidy_amount_override(self, capsys):
+        args = make_args(
+            price_per_liter=1160.0,
+            liters=50.38,
+            subsidy_per_liter=None,
+            subsidy_amount=5800,
+        )
+        bookkeeper.cmd_add_fuel(args)
+        out = parse_json(capsys.readouterr().out)
+        assert out["subsidy_amount"] == 5800
+        assert out["net_cost"] == round(1160 * 50.38) - 5800
+
+    def test_zero_subsidy_amount_override(self, capsys):
+        args = make_args(
+            price_per_liter=1160.0,
+            liters=40.0,
+            subsidy_per_liter=None,
+            subsidy_amount=0,
+        )
+        bookkeeper.cmd_add_fuel(args)
+        out = parse_json(capsys.readouterr().out)
+        assert out["subsidy_per_liter"] == 0
+        assert out["subsidy_amount"] == 0
+        assert out["net_cost"] == round(1160 * 40)
 
     def test_output_is_valid_json(self, capsys):
         args = make_args(price_per_liter=900.0, liters=10.0)
@@ -243,8 +283,9 @@ class TestZoneCRUD:
         bookkeeper.cmd_list_zones(args)
         out = parse_json(capsys.readouterr().out)
         assert isinstance(out, list)
-        assert len(out) == 4
+        assert len(out) == 8
         codes = [z["code"] for z in out]
+        assert "151C" in codes
         assert "804C" in codes
 
     def test_update_zone(self, capsys):
@@ -764,7 +805,7 @@ class TestEdgeCasesOriginal:
         assert out["fuel_type"] == "LPG"
 
     def test_constants_values(self):
-        assert bookkeeper.LPG_SUBSIDY_PER_LITER == 151.57
+        assert bookkeeper.LPG_SUBSIDY_PER_LITER == 115.14
         assert bookkeeper.DEFAULT_UNIT_PRICE == 1000
 
 
